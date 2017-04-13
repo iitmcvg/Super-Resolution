@@ -1,5 +1,10 @@
 # Super resolution using subpixel CNNs implementation with Tensorflow
 
+To train
+```bash
+python main.py --dataset celebA --is_train True --is_crop True
+```
+
 ## Stuff to still do
 1. Try it on simple VAE architecture
 2. Make it work for multi-size multi-aspect ratio images

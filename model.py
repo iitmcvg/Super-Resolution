@@ -93,7 +93,7 @@ class DCGAN(object):
 
         g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
-        tf.global_variables_initializer()
+        self.sess.run(tf.global_variables_initializer())
 
         self.saver = tf.train.Saver()
         self.g_sum = tf.summary.merge([self.G_sum, self.g_loss_sum])
