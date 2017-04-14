@@ -5,7 +5,7 @@ from glob import glob
 import tensorflow as tf
 from six.moves import xrange
 from scipy.misc import imresize
-from subpixel import PS
+from subpixel import phase_shift_deconv
 
 from ops import *
 from utils import *
@@ -58,30 +58,23 @@ class DCGAN(object):
         self.build_model()
 
     def build_model(self):
-
-        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.input_size, self.input_size, 3],
-                                    name='real_images')
+        """Defines placeholders and variables and losses for the NN"""
+        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.input_size, self.input_size, 3], name='real_images')
         try:
             self.up_inputs = tf.image.resize_images(self.inputs, self.image_shape[0], self.image_shape[1], tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         except ValueError:
             # newer versions of tensorflow
             self.up_inputs = tf.image.resize_images(self.inputs, [self.image_shape[0], self.image_shape[1]], tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
-        self.images = tf.placeholder(tf.float32, [self.batch_size] + self.image_shape,
-                                    name='real_images')
-        self.sample_images= tf.placeholder(tf.float32, [self.sample_size] + self.image_shape,
-                                        name='sample_images')
+        self.ideal_output = tf.placeholder(tf.float32, [self.batch_size] + self.image_shape, name='real_images')
 
-        self.G = self.generator(self.inputs)
+        self.generated_output = self.generator(self.inputs)
+        self.generated_output_sum = tf.summary.image("G", self.generated_output)
 
-        self.G_sum = tf.summary.image("G", self.G)
-
-        self.g_loss = tf.reduce_mean(tf.square(self.images-self.G))
-
+        self.g_loss = tf.reduce_mean(tf.square(self.ideal_output-self.generated_output))
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
 
         t_vars = tf.trainable_variables()
-
         self.g_vars = [var for var in t_vars if 'g_' in var.name]
 
         self.saver = tf.train.Saver()
@@ -91,12 +84,11 @@ class DCGAN(object):
         # first setup validation data
         data = sorted(glob(os.path.join("./data", config.dataset, "valid", "*.jpg")))
 
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
-                          .minimize(self.g_loss, var_list=self.g_vars)
+        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1).minimize(self.g_loss, var_list=self.g_vars)
         self.sess.run(tf.global_variables_initializer())
 
         self.saver = tf.train.Saver()
-        self.g_sum = tf.summary.merge([self.G_sum, self.g_loss_sum])
+        self.g_sum = tf.summary.merge([self.generated_output_sum, self.g_loss_sum])
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
         sample_files = data[0:self.sample_size]
@@ -127,30 +119,22 @@ class DCGAN(object):
             for idx in range(0, batch_idxs):
                 batch_files = data[idx*config.batch_size:(idx+1)*config.batch_size]
                 batch = [get_image(batch_file, self.image_size, is_crop=self.is_crop) for batch_file in batch_files]
-                input_batch = [doresize(xx, [self.input_size,]*2) for xx in batch]
+                batch_inputs = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
                 batch_images = np.array(batch).astype(np.float32)
-                batch_inputs = np.array(input_batch).astype(np.float32)
-
+                
                 # Update G network
-                _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
-                    feed_dict={ self.inputs: batch_inputs, self.images: batch_images })
+                _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss], feed_dict={ self.inputs: batch_inputs, self.ideal_output: batch_images })
                 self.writer.add_summary(summary_str, counter)
 
                 counter += 1
-                print(("Epoch: [%2d] [%4d/%4d] time: %4.4f, g_loss: %.8f" \
-                    % (epoch, idx, batch_idxs,
-                        time.time() - start_time, errG)))
+                print(("Epoch: [{:2}] [{:4}/{:4}] time: {:4.4}, g_loss: {:.8}".format(epoch, idx, batch_idxs, time.time() - start_time, errG)))
 
                 if np.mod(counter, 100) == 1:
-                    samples, g_loss, up_inputs = self.sess.run(
-                        [self.G, self.g_loss, self.up_inputs],
-                        feed_dict={self.inputs: sample_input_images, self.images: sample_images}
-                    )
+                    samples, g_loss, up_inputs = self.sess.run([self.generated_output, self.g_loss, self.up_inputs], feed_dict={self.inputs: sample_input_images, self.ideal_output: sample_images})
                     if not have_saved_inputs:
                         save_images(up_inputs, [8, 8], './samples/inputs.png')
                         have_saved_inputs = True
-                    save_images(samples, [8, 8],
-                                './samples/valid_%s_%s.png' % (epoch, idx))
+                    save_images(samples, [8, 8], './samples/valid_%s_%s.png' % (epoch, idx))
                     print(("[Sample] g_loss: %.8f" % (g_loss)))
 
                 if np.mod(counter, 500) == 2:
@@ -158,6 +142,7 @@ class DCGAN(object):
 
     def generator(self, z):
         # project `z` and reshape
+        # output shape: last parameter is number of filters, 0th parameter is depth of input to convolution operation
         self.h0, self.h0_w, self.h0_b = deconv2d(z, [self.batch_size, 32, 32, self.gf_dim], k_h=1, k_w=1, d_h=1, d_w=1, name='g_h0', with_w=True)
         h0 = lrelu(self.h0)
 
@@ -165,7 +150,8 @@ class DCGAN(object):
         h1 = lrelu(self.h1)
 
         h2, self.h2_w, self.h2_b = deconv2d(h1, [self.batch_size, 32, 32, 3*16], d_h=1, d_w=1, name='g_h2', with_w=True)
-        h2 = PS(h2, 4, color=True)
+        
+        h2 = phase_shift_deconv(h2, 4, color=True)
 
         return tf.nn.tanh(h2)
 
@@ -177,20 +163,29 @@ class DCGAN(object):
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
 
-        self.saver.save(self.sess,
-                        os.path.join(checkpoint_dir, model_name),
-                        global_step=step)
+        self.saver.save(self.sess, os.path.join(checkpoint_dir, model_name), global_step=step)
 
     def load(self, checkpoint_dir):
         print(" [*] Reading checkpoints...")
 
-        model_dir = "%s_%s" % (self.dataset_name, self.batch_size)
+        model_dir = "{:}_{:}".format(self.dataset_name, self.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
             self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
+            
             return True
         else:
             return False
+
+    def test(self,z):
+        print('yolo')
+        batch = [get_image(z, self.image_size, is_crop=self.is_crop)]*64
+        batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
+        output = self.sess.run(self.generated_output, feed_dict={self.inputs: batch_small})
+        print('Done', output.shape)
+        save_images(batch, [8, 8], './samples/test_reference.jpg')
+        save_images(batch_small, [8, 8], './samples/test_input.jpg')
+        save_images(output, [8, 8], './samples/test_generated_output.jpg')

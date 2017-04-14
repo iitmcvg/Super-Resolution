@@ -3,9 +3,10 @@ import scipy.misc
 import numpy as np
 
 from model import DCGAN
-from utils import pp, visualize, to_json
+from utils import pp, visualize, to_json, get_image
 
 import tensorflow as tf
+import cv2
 
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
@@ -42,16 +43,12 @@ def main(_):
             dcgan.train(FLAGS)
         else:
             dcgan.load(FLAGS.checkpoint_dir)
+            img_name = '192161.jpg'
+            dcgan.test(z=img_name)
 
         if FLAGS.visualize:
-            to_json("./web/js/layers.js", [dcgan.h0_w, dcgan.h0_b, dcgan.g_bn0],
-                                          [dcgan.h1_w, dcgan.h1_b, dcgan.g_bn1],
-                                          [dcgan.h2_w, dcgan.h2_b, dcgan.g_bn2],
-                                          [dcgan.h3_w, dcgan.h3_b, dcgan.g_bn3],
-                                          [dcgan.h4_w, dcgan.h4_b, None])
-
             # Below is codes for visualization
-            OPTION = 2
+            OPTION = 0
             visualize(sess, dcgan, FLAGS, OPTION)
 
 if __name__ == '__main__':
