@@ -34,6 +34,7 @@ def merge(images, size):
     for idx, image in enumerate(images):
         i = idx % size[1]
         j = idx // size[1]
+        # print('IMAGESHAPPPPPPPE ', images.shape)
         img[j*h:j*h+h, i*w:i*w+w, :] = image
 
     return img
@@ -61,6 +62,29 @@ def transform(image, npx=128, is_crop=True):
 def inverse_transform(images):
     return (np.array(images)+1.)/2.
 
+#For dividing true input into equal grids of 32*32
+def make_grid(arr, nrows, ncols):
+    """
+    Return an array of shape (n, nrows, ncols) where
+    n * nrows * ncols = arr.size
+
+    If arr is a 2D array, the returned array should look like n subblocks with
+    each subblock preserving the "physical" layout of arr.
+    """
+    
+    channels=list()
+    for ch in range(0,arr.shape[2]):
+        channels.append(arr[:,:,ch])
+    
+    final=list()
+    h, w= arr.shape[:2]
+    for chn in channels:
+        final.append(chn.reshape(h//nrows, nrows, w//ncols, ncols).swapaxes(1,2).reshape(-1, nrows, ncols))
+    
+    final=np.array(final).swapaxes(0,1).swapaxes(1,2).swapaxes(2,3)
+    print('Shape of reshaped grids',final.shape)
+    return final
+    
 
 def to_json(output_path, *layers):
     with open(output_path, "w") as layer_f:

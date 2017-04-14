@@ -43,7 +43,7 @@ def main(_):
             dcgan.train(FLAGS)
         else:
             dcgan.load(FLAGS.checkpoint_dir)
-            img_name = '192161.jpg'
+            img_name = 'test.jpg'
             dcgan.test(z=img_name)
 
         if FLAGS.visualize:

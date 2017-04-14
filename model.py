@@ -189,3 +189,18 @@ class DCGAN(object):
         save_images(batch, [8, 8], './samples/test_reference.jpg')
         save_images(batch_small, [8, 8], './samples/test_input.jpg')
         save_images(output, [8, 8], './samples/test_generated_output.jpg')
+    
+    def test_variable_sized_image(self,z):
+        print('yolo')
+        obtain_input = get_image(z, self.image_size, is_crop=self.is_crop)
+        print('Obtain input shape', obtain_input.shape)
+        obtain_grids=make_grid(obtain_input,self.input_size,self.input_size)
+        #batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
+        #batch_grided = np.array([make_grid(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
+        
+        for og in range (0,len(obtain_grids)):
+            batch_grid=[obtain_grids[og]]*64
+            output = self.sess.run(self.generated_output, feed_dict={self.inputs: batch_grid})
+            #save_images(batch, [8, 8], './samples/test_reference.jpg')
+            save_images(batch_grid, [8, 8], './samples/test_input'+str(og)+'.jpg')
+            save_images(output, [8, 8], './samples/test_generated_output'+str(og)+'.jpg')
