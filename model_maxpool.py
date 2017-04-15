@@ -149,17 +149,23 @@ class DCGAN(object):
         self.h1, self.h1_w, self.h1_b = deconv2d(h0, [self.batch_size, 32, 32, self.gf_dim], name='g_h1', d_h=1, d_w=1, with_w=True)
         h1 = lrelu(self.h1)
 
-        h2, self.h2_w, self.h2_b = deconv2d(h1, [self.batch_size, 32, 32, 3*4], d_h=1, d_w=1, name='g_h2', with_w=True)
-        h2 = phase_shift_deconv(h2, 2, color=True)
+        h2, self.h2_w, self.h2_b = deconv2d(h1, [self.batch_size, 32, 32, 3*16], d_h=1, d_w=1, name='g_h2', with_w=True)
+        h2 = phase_shift_deconv(h2, 4, color=True)
+        # return tf.nn.tanh(h2)
         
-        # extraupsample version: Below lines.
-        h3, self.h3_w, self.h3_b = deconv2d(h2, [self.batch_size, 64, 64, self.gf_dim], d_h=1, d_w=1, name='g_h3', with_w=True)
-        h4, self.h4_w, self.h4_b = deconv2d(h3, [self.batch_size, 64, 64, 3*4], d_h=1, d_w=1, name='g_h4', with_w=True)
-        h4 = phase_shift_deconv(h4, 2, color=True)
+        '''
+        # 1finallayer version: Below line.
+        h3, self.h3_w, self.h3_b = deconv2d(h2, [self.batch_size, 128, 128, 3], d_h=1, d_w=1, name='g_h3', with_w=True)
+        return tf.nn.tanh(h3)
+        '''
 
-        h5, self.h5_w, self.h5_b = deconv2d(h4, [self.batch_size, 128, 128, self.gf_dim], d_h=1, d_w=1, name='g_h5', with_w=True)
-        h6, self.h6_w, self.h6_b = deconv2d(h5, [self.batch_size, 128, 128, 3], d_h=1, d_w=1, name='g_h6', with_w=True)
-        return tf.nn.tanh(h6)
+        # extraupsample version: Below lines.
+        h3, self.h3_w, self.h3_b = deconv2d(h2, [self.batch_size, 128, 128, self.gf_dim], d_h=1, d_w=1, name='g_h3', with_w=True)
+        h4, self.h4_w, self.h4_b = deconv2d(h2, [self.batch_size, 128, 128, 3*4], d_h=1, d_w=1, name='g_h4', with_w=True)
+        h4 = phase_shift_deconv(h4, 2, color=True)
+        # h4_downsampled = tf.nn.conv2d(h4, filter=[3,3,], strides=[1, 2, 2, 1], padding='SAME', name='g_h5')
+        h4_downsampled = tf.nn.max_pool(h4, [1, 2,2,1], strides=[1,2,2,1], padding='VALID')
+        return tf.nn.tanh(h4_downsampled)
 
     def save(self, checkpoint_dir, step):
         model_name = "DCGAN.model"
@@ -190,45 +196,13 @@ class DCGAN(object):
         print('yolo')
         batch = [get_image(z, self.image_size, is_crop=self.is_crop)]*64
         batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
-        output, upsampled_inputs = self.sess.run([self.generated_output, self.up_inputs], feed_dict={self.inputs: batch_small})
+        output = self.sess.run(self.generated_output, feed_dict={self.inputs: batch_small})
         print('Done', output.shape)
-        save_images([batch[0]], [1, 1], os.path.join(config.sample_dir, 'test_reference.jpg'))
-        save_images([batch_small[0]], [1, 1], os.path.join(config.sample_dir, 'test_input.jpg'))
-        save_images([upsampled_inputs[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_upsampled.jpg'))
-        save_images([output[0]], [1, 1], os.path.join(config.sample_dir, 'test_generated_output.jpg'))
+        save_images(batch, [8, 8], os.path.join(config.sample_dir, 'test_reference.jpg'))
+        save_images(batch_small, [8, 8], os.path.join(config.sample_dir, 'test_input.jpg'))
+        save_images(output, [8, 8], os.path.join(config.sample_dir, 'test_generated_output.jpg'))
     
-    def variable_size_test(self,z,config):
-        print('yolo')
-        image=get_image(z, self.image_size, is_crop=self.is_crop)
-        
-        gridded,nrows,ncols=make_grid(image)
-        output_list=list()
-        upsampled_inputs_list=list()
-        for i in range(0,nrows*ncols):
-            batch=np.array([gridded[i]]*64).astype(np.float32)
-            batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
-            output, upsampled_inputs = self.sess.run([self.generated_output, self.up_inputs], feed_dict={self.inputs: batch_small})
-            output_list.append(output[0])
-            upsampled_inputs_list.append(upsampled_inputs[0])
-            print('Done')
-            save_images([batch[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_{:}.jpg'.format(i)))
-            save_images([upsampled_inputs[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_upsampled_{:}.jpg'.format(i)))
-            save_images([output[0]], [1, 1], os.path.join(config.sample_dir, 'test_generated_output_{:}.jpg'.format(i)))
-        #output_list=np.array(output_list).astype(np.float32)
-        joined_outputs=join_grid(output_list,nrows,ncols)
-        joined_upsampled_inputs=join_grid(upsampled_inputs_list,nrows,ncols)
-        save_images([joined_outputs], [1, 1], os.path.join(config.sample_dir, 'joined_outputs.jpg'))
-        save_images([joined_upsampled_inputs], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs.jpg'))
-        
-        joined_output_resize=imresize(joined_outputs,(128,128,3))
-        joined_upsampled_inputs_resize=imresize(joined_upsampled_inputs,(128,128,3))
-        
-        save_images([joined_output_resize], [1, 1], os.path.join(config.sample_dir, 'joined_output_resized.jpg'))
-        save_images([joined_upsampled_inputs_resize], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs_resized.jpg'))
-        
-
-
-    def test_variable_sized_image(self,z, config):
+    def test_variable_sized_image(self,z):
         print('yolo')
         obtain_input = get_image(z, self.image_size, is_crop=self.is_crop)
         print('Obtain input shape', obtain_input.shape)
@@ -239,8 +213,6 @@ class DCGAN(object):
         for og in range (0,len(obtain_grids)):
             batch_grid=[obtain_grids[og]]*64
             output = self.sess.run(self.generated_output, feed_dict={self.inputs: batch_grid})
-            #save_images(batch, [1, 1], './samples/test_reference.jpg')
-            save_images(batch_grid, [1, 1], os.path.join(config.sample_dir, 'test_input'+str(og)+'.jpg'))
-            save_images(output, [1, 1], os.path.join(config.sample_dir, 'test_generated_output'+str(og)+'.jpg'))
-
-    
+            #save_images(batch, [8, 8], './samples/test_reference.jpg')
+            save_images(batch_grid, [8, 8], os.path.join(config.sample_dir, 'test_input'+str(og)+'.jpg'))
+            save_images(output, [8, 8], os.path.join(config.sample_dir, 'test_generated_output'+str(og)+'.jpg'))
