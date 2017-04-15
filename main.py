@@ -3,7 +3,7 @@ import scipy.misc
 import numpy as np
 
 from model import DCGAN
-from utils import pp, visualize, to_json, get_image
+from utils import pp, get_image
 
 import tensorflow as tf
 import cv2
@@ -21,7 +21,6 @@ flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image s
 flags.DEFINE_string("log_dir", "logs", "Directory name to save the training logs for tensorboard visualization [logs]")
 flags.DEFINE_boolean("is_train", False, "True for training, False for testing [False]")
 flags.DEFINE_boolean("is_crop", False, "True for training, False for testing [False]")
-flags.DEFINE_boolean("visualize", False, "True for visualizing, False for nothing [False]")
 FLAGS = flags.FLAGS
 
 def main(_):
@@ -46,13 +45,9 @@ def main(_):
         else:
             dcgan.load(FLAGS.checkpoint_dir)
             img_name = 'rsnk.jpg'
+            # Below function is only if input is 128x128
             # dcgan.test(z=img_name, config=FLAGS)
             dcgan.variable_size_test(z=img_name,config=FLAGS)
-
-        if FLAGS.visualize:
-            # Below is codes for visualization
-            OPTION = 0
-            visualize(sess, dcgan, FLAGS, OPTION)
 
 if __name__ == '__main__':
     tf.app.run()

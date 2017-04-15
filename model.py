@@ -225,22 +225,3 @@ class DCGAN(object):
         
         save_images([joined_output_resize], [1, 1], os.path.join(config.sample_dir, 'joined_output_resized.jpg'))
         save_images([joined_upsampled_inputs_resize], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs_resized.jpg'))
-        
-
-
-    def test_variable_sized_image(self,z, config):
-        print('yolo')
-        obtain_input = get_image(z, self.image_size, is_crop=self.is_crop)
-        print('Obtain input shape', obtain_input.shape)
-        obtain_grids=make_grid(obtain_input,self.input_size,self.input_size)
-        #batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
-        #batch_grided = np.array([make_grid(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
-        
-        for og in range (0,len(obtain_grids)):
-            batch_grid=[obtain_grids[og]]*64
-            output = self.sess.run(self.generated_output, feed_dict={self.inputs: batch_grid})
-            #save_images(batch, [1, 1], './samples/test_reference.jpg')
-            save_images(batch_grid, [1, 1], os.path.join(config.sample_dir, 'test_input'+str(og)+'.jpg'))
-            save_images(output, [1, 1], os.path.join(config.sample_dir, 'test_generated_output'+str(og)+'.jpg'))
-
-    
