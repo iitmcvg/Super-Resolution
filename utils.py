@@ -1,14 +1,14 @@
 """
-Some codes from https://github.com/Newmu/dcgan_code
+Some codes from https://github.com/Newmu/dcgan_code and https://github.com/Tetrachrome/subpixel
 """
 from __future__ import division
 import math
-import json
 import random
 import pprint
 import scipy.misc
+from scipy.misc import imresize
 import numpy as np
-from time import gmtime, strftime
+import tensorflow as tf
 
 pp = pprint.PrettyPrinter()
 
@@ -119,3 +119,79 @@ def join_grid(output_list,nrows,ncols):
             large_ass_output[128*i:128*(i+1),128*j:128*(j+1),:]=output_list[i*ncols+j]
 
     return large_ass_output
+
+def doresize(x, shape):
+    x = np.copy((x+1.)*127.5).astype("uint8")
+    y = imresize(x, shape)
+    return y
+
+def conv2d(input_, output_dim, 
+           k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
+           name="conv2d"):
+    with tf.variable_scope(name):
+        w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
+                            initializer=tf.truncated_normal_initializer(stddev=stddev))
+        conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
+
+        biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.0))
+        conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
+
+        return conv
+
+def deconv2d(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="deconv2d", with_w=False):
+    with tf.variable_scope(name):
+        # filter : [height, width, output_channels, in_channels]
+        w = tf.get_variable('w', [k_h, k_w, output_shape[-1], input_.get_shape()[-1]], initializer=tf.random_normal_initializer(stddev=stddev))
+        
+        try:
+            deconv = tf.nn.conv2d_transpose(input_, w, output_shape=output_shape, strides=[1, d_h, d_w, 1])
+        # Support for verisons of TensorFlow before 0.7.0
+        except AttributeError:
+            deconv = tf.nn.deconv2d(input_, w, output_shape=output_shape, strides=[1, d_h, d_w, 1])
+
+        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.0))
+        deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
+
+        if with_w:
+            return deconv, w, biases
+        else:
+            return deconv
+
+def lrelu(x, leak=0.2, name="lrelu"):
+    with tf.variable_scope(name):
+        f1 = 0.5 * (1 + leak)
+        f2 = 0.5 * (1 - leak)
+        return f1 * x + f2 * abs(x)
+
+def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
+    shape = input_.get_shape().as_list()
+
+    with tf.variable_scope(scope or "Linear"):
+        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
+                                 tf.random_normal_initializer(stddev=stddev))
+        bias = tf.get_variable("bias", [output_size],
+            initializer=tf.constant_initializer(bias_start))
+        if with_w:
+            return tf.matmul(input_, matrix) + bias, matrix, bias
+        else:
+            return tf.matmul(input_, matrix) + bias
+
+def _phase_shift(I, r):
+    bsize, a, b, c = I.get_shape().as_list()
+    bsize = tf.shape(I)[0] # Handling Dimension(None) type for undefined batch dim
+    X = tf.reshape(I, (bsize, a, b, r, r))
+    X = tf.transpose(X, (0, 1, 2, 4, 3))  # bsize, a, b, 1, 1
+    X = tf.split(X, a, 1)  # a, [bsize, b, r, r]
+    X = tf.concat([tf.squeeze(x, axis=1) for x in X], 2)  # bsize, b, a*r, r
+    X = tf.split(X, b, 1)  # b, [bsize, a*r, r]
+    X = tf.concat([tf.squeeze(x, axis=1) for x in X], 2)  # bsize, a*r, b*r
+    return tf.reshape(X, (bsize, a*r, b*r, 1))
+
+
+def phase_shift_deconv(X, r, color=False):
+    if color:
+        Xc = tf.split(X, 3, 3)
+        X = tf.concat([_phase_shift(x, r) for x in Xc], 3)
+    else:
+        X = _phase_shift(X, r)
+    return X

@@ -1,12 +1,10 @@
 import os
-import scipy.misc
 import numpy as np
 
 from model import DCGAN
 from utils import pp, get_image
 
 import tensorflow as tf
-import cv2
 
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 10, "Epoch to train [10]")
@@ -19,6 +17,7 @@ flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, ls
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
 flags.DEFINE_string("log_dir", "logs", "Directory name to save the training logs for tensorboard visualization [logs]")
+flags.DEFINE_string("test_image", "test.jpg", "Location to image for testing [test.jpg]")
 flags.DEFINE_boolean("is_train", False, "True for training, False for testing [False]")
 flags.DEFINE_boolean("is_crop", False, "True for training, False for testing [False]")
 FLAGS = flags.FLAGS
@@ -30,9 +29,10 @@ def main(_):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.sample_dir):
         os.makedirs(FLAGS.sample_dir)
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.35)
+    # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.35)
 
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    # with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session() as sess:
         if FLAGS.dataset == 'mnist':
             dcgan = DCGAN(sess, image_size=FLAGS.image_size, batch_size=FLAGS.batch_size, y_dim=10,
                     dataset_name=FLAGS.dataset, is_crop=FLAGS.is_crop, checkpoint_dir=FLAGS.checkpoint_dir)
@@ -44,7 +44,7 @@ def main(_):
             dcgan.train(FLAGS)
         else:
             dcgan.load(FLAGS.checkpoint_dir)
-            img_name = 'rsnk.jpg'
+            img_name = FLAGS.test_image
             # Below function is only if input is 128x128
             # dcgan.test(z=img_name, config=FLAGS)
             dcgan.variable_size_test(z=img_name,config=FLAGS)

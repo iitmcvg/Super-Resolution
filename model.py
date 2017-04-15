@@ -3,17 +3,9 @@ import os
 import time
 from glob import glob
 import tensorflow as tf
-from six.moves import xrange
 from scipy.misc import imresize
-from subpixel import phase_shift_deconv
 
-from ops import *
 from utils import *
-
-def doresize(x, shape):
-    x = np.copy((x+1.)*127.5).astype("uint8")
-    y = imresize(x, shape)
-    return y
 
 class DCGAN(object):
     def __init__(self, sess, image_size=128, is_crop=True,
