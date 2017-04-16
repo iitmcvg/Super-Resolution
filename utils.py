@@ -90,22 +90,23 @@ def make_grid(img):
     #Breaking into 32*32 images.
     grids=list()
     h,w = img.shape[:2]
+    print('Image shape: ',h,w)
     #nrows = h//32
     #ncols = w//32
 
-    padh=int(h%32)
+    padh=32-int(h%32)
     print('Row padding: ',padh)
-    padw=int(w%32)
+    padw=32-int(w%32)
     print('Column padding: ',padw)
     neo_image=np.zeros((h+padh,w+padw,3))
     neo_image[padh//2:h+padh//2,padw//2:w+padw//2,:]=img
-    
+    print('Neo Image size: ',neo_image.shape[:2])
     nrows=neo_image.shape[0]//32
     ncols=neo_image.shape[1]//32
     
     #num_grid=image.shape[0]*image.shape[1]/(32*32)
-    for i in range(0,ncols):
-        for j in range(0,nrows):
+    for i in range(0,nrows):
+        for j in range(0,ncols):
             grids.append(neo_image[32*i:32*(i+1),32*j:32*(j+1),:])
     
     print('Shape of single grid: ',grids[0].shape)
@@ -114,8 +115,8 @@ def make_grid(img):
 def join_grid(output_list,nrows,ncols):
     # h,w=output_list[0].shape[:2]
     large_ass_output=np.zeros((128*nrows,128*ncols,3))
-    for i in range(0,ncols):
-        for j in range(0,nrows):
+    for i in range(0,nrows):
+        for j in range(0,ncols):
             large_ass_output[128*i:128*(i+1),128*j:128*(j+1),:]=output_list[i*ncols+j]
 
     return large_ass_output

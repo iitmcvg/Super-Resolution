@@ -4,6 +4,7 @@ import time
 from glob import glob
 import tensorflow as tf
 from scipy.misc import imresize
+from scipy.ndimage import filters
 
 from utils import *
 
@@ -194,6 +195,7 @@ class DCGAN(object):
         image=get_image(z, self.image_size, is_crop=self.is_crop)
         
         gridded,nrows,ncols=make_grid(image)
+        print('nrows, ncols: ',nrows, ncols)
         output_list=list()
         upsampled_inputs_list=list()
         for i in range(0,nrows*ncols):
@@ -202,12 +204,14 @@ class DCGAN(object):
             output, upsampled_inputs = self.sess.run([self.generated_output, self.up_inputs], feed_dict={self.inputs: batch_small})
             output_list.append(output[0])
             upsampled_inputs_list.append(upsampled_inputs[0])
-            print('Done')
+            print('Done','Iteration number: ',i)
             save_images([batch[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_{:}.jpg'.format(i)))
             save_images([upsampled_inputs[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_upsampled_{:}.jpg'.format(i)))
             save_images([output[0]], [1, 1], os.path.join(config.sample_dir, 'test_generated_output_{:}.jpg'.format(i)))
         #output_list=np.array(output_list).astype(np.float32)
         joined_outputs=join_grid(output_list,nrows,ncols)
+        #joined_outputs=filters.gaussian_filter(joined_outputs,sigma=(1,1,0))
+
         joined_upsampled_inputs=join_grid(upsampled_inputs_list,nrows,ncols)
         save_images([joined_outputs], [1, 1], os.path.join(config.sample_dir, 'joined_outputs.jpg'))
         save_images([joined_upsampled_inputs], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs.jpg'))
