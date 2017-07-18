@@ -37,8 +37,8 @@ Super resolution of an image using Efficient subpixel Phase Shift CNNs.
 			<td>Output</td>
 		</tr>
 		<tr>
-			<td><img src="results/joined_outputs.jpg" alt="Inputs" style="width: 400px;"/></td>
-			<td><img src="results/joined_upsampled_inputs.jpg" alt="Outputs" style="width: 400px;"/></td>
+			<td><img src="results/joined_outputs.jpg" alt="Output" style="width: 400px;"/></td>
+			<td><img src="results/joined_upsampled_inputs.jpg" alt="Input" style="width: 400px;"/></td>
 		</tr>
 	</tbody>
 </table>
