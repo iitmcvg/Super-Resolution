@@ -37,8 +37,8 @@ Super resolution of an image using Efficient subpixel Phase Shift CNNs.
 			<td>Input</td>
 		</tr>
 		<tr>
-			<td><img src="results/joined_outputs.jpg" alt="Output" style="width: 400px;"/></td>
 			<td><img src="results/joined_upsampled_inputs.jpg" alt="Input" style="width: 400px;"/></td>
+			<td><img src="results/joined_outputs_full_resolution.jpg" alt="Output" style="width: 400px;"/></td>
 		</tr>
 	</tbody>
 </table>
@@ -49,7 +49,7 @@ Super resolution of an image using Efficient subpixel Phase Shift CNNs.
 * Python 3.5+
 * Scipy, Numpy
 
-## Execution
+## Usage
 1. Training: (assuming the `celebA` dataset (split into `train`, `test` and `valid`) are located in the folder `data` in the repository folder)
     ```bash
     python main.py --dataset celebA --is_train True --is_crop True
@@ -59,6 +59,12 @@ Super resolution of an image using Efficient subpixel Phase Shift CNNs.
     python main.py --test_image abc.png
     ```
 
+## To-Do
+* Rather than non overlapping sections of 32x32, use overlapping sections and take the center part alone
+* Stop storing the partial outputs in the RAM - limits the size of the picture that can be tested upon
+* Train model for different resolutions
+* Add ability to do it to a subsection of the image that the user defines
+
 ## References
 
 1.  [Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network](https://arxiv.org/abs/1609.05158). By Shi et. al.  
@@ -66,7 +72,3 @@ Super resolution of an image using Efficient subpixel Phase Shift CNNs.
 3. [Phase Shift implementation](https://github.com/Tetrachrome/subpixel)
 4. [Visualizing and Understanding Convolutional Networks](https://arxiv.org/abs/1311.2901). By Zeiler and Fergus.  
 5. [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285). By Dumoulin and Visin.
-
-## Further reading
-Alex J. Champandard made a really interesting analysis of this topic in this [thread](https://twitter.com/alexjc/status/782499923753304064).   
-For discussions about differences between phase shift and straight up `resize` please see the companion [notebook](https://github.com/Tetrachrome/subpixel/blob/master/ponynet.ipynb) and this [thread](https://twitter.com/soumithchintala/status/782603117300965378).

@@ -180,7 +180,7 @@ class DCGAN(object):
             return False
 
     def test(self,z, config):
-        print('yolo')
+        print('Testing 32x32 sized image')
         batch = [get_image(z, self.image_size, is_crop=self.is_crop)]*64
         batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
         output, upsampled_inputs = self.sess.run([self.generated_output, self.up_inputs], feed_dict={self.inputs: batch_small})
@@ -191,33 +191,40 @@ class DCGAN(object):
         save_images([output[0]], [1, 1], os.path.join(config.sample_dir, 'test_generated_output.jpg'))
     
     def variable_size_test(self,z,config):
-        print('yolo')
+        print('Running Variable Sized Testing')
         image=get_image(z, self.image_size, is_crop=self.is_crop)
         
-        gridded,nrows,ncols=make_grid(image)
-        print('nrows, ncols: ',nrows, ncols)
-        output_list=list()
-        upsampled_inputs_list=list()
+        gridded, nrows, ncols, pad_rows, pad_cols=make_grid(image)    # This line breaks the image into subsections of 32x32, appending rows and columns wherever necessary. The list containing the sub images is gridded
+        print('Number of rows, columns in the image grid: ({}, {})'.format(nrows, ncols))
+        output_list=list()  #output_list is a list containing the partial outputs, i.e., the output of passing each element of the image grid through the network
+        if config.debug:
+            upsampled_inputs_list=list()
+
         for i in range(0,nrows*ncols):
             batch=np.array([gridded[i]]*64).astype(np.float32)
             batch_small = np.array([doresize(xx, [self.input_size,]*2) for xx in batch]).astype(np.float32)
             output, upsampled_inputs = self.sess.run([self.generated_output, self.up_inputs], feed_dict={self.inputs: batch_small})
             output_list.append(output[0])
-            upsampled_inputs_list.append(upsampled_inputs[0])
-            print('Done','Iteration number: ',i)
-            save_images([batch[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_{:}.jpg'.format(i)))
-            save_images([upsampled_inputs[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_upsampled_{:}.jpg'.format(i)))
             save_images([output[0]], [1, 1], os.path.join(config.sample_dir, 'test_generated_output_{:}.jpg'.format(i)))
-        #output_list=np.array(output_list).astype(np.float32)
-        joined_outputs=join_grid(output_list,nrows,ncols)
-        #joined_outputs=filters.gaussian_filter(joined_outputs,sigma=(1,1,0))
+            print('Processed 32x32 sub image number: ',i)
+            
+            if config.debug:
+                save_images([batch[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_{:}.jpg'.format(i)))
+                upsampled_inputs_list.append(upsampled_inputs[0]) # Uncomment this line if you want to save the upsampled inputs too
+                save_images([upsampled_inputs[0]], [1, 1], os.path.join(config.sample_dir, 'test_input_upsampled_{:}.jpg'.format(i)))
 
-        joined_upsampled_inputs=join_grid(upsampled_inputs_list,nrows,ncols)
-        save_images([joined_outputs], [1, 1], os.path.join(config.sample_dir, 'joined_outputs.jpg'))
-        save_images([joined_upsampled_inputs], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs.jpg'))
+        joined_outputs=join_grid(output_list, nrows, ncols, pad_rows, pad_cols)
+        joined_outputs=filters.gaussian_filter(joined_outputs,sigma=(1,1,0))
         
-        joined_output_resize=imresize(joined_outputs,(128,128,3))
-        joined_upsampled_inputs_resize=imresize(joined_upsampled_inputs,(128,128,3))
-        
+
+
+
+        save_images([joined_outputs], [1, 1], os.path.join(config.sample_dir, 'joined_outputs_full_resolution.jpg'))
+        joined_output_resize=imresize(joined_outputs,image.shape)
         save_images([joined_output_resize], [1, 1], os.path.join(config.sample_dir, 'joined_output_resized.jpg'))
-        save_images([joined_upsampled_inputs_resize], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs_resized.jpg'))
+
+        if config.debug:
+            joined_upsampled_inputs=join_grid(upsampled_inputs_list,nrows,ncols, pad_rows, pad_cols)
+            save_images([joined_upsampled_inputs], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs.jpg'))
+            joined_upsampled_inputs_resize=imresize(joined_upsampled_inputs,image.shape)
+            save_images([joined_upsampled_inputs_resize], [1, 1], os.path.join(config.sample_dir, 'joined_upsampled_inputs_resized.jpg'))

@@ -90,7 +90,7 @@ def make_grid(img):
     #Breaking into 32*32 images.
     grids=list()
     h,w = img.shape[:2]
-    print('Image shape: ',h,w)
+    print('Original Image shape: ',h,w,'. Breaking it into 32x32 images and storing the list')
     #nrows = h//32
     #ncols = w//32
 
@@ -109,17 +109,19 @@ def make_grid(img):
         for j in range(0,ncols):
             grids.append(neo_image[32*i:32*(i+1),32*j:32*(j+1),:])
     
-    print('Shape of single grid: ',grids[0].shape)
-    return grids,nrows,ncols
+    print('Shape of an element image in the list: ',grids[0].shape)
+    return grids, nrows, ncols, padh, padw
 
-def join_grid(output_list,nrows,ncols):
+def join_grid(output_list, nrows, ncols, pad_rows, pad_cols):
     # h,w=output_list[0].shape[:2]
-    large_ass_output=np.zeros((128*nrows,128*ncols,3))
+    joined_output=np.zeros((128*nrows,128*ncols,3))
     for i in range(0,nrows):
         for j in range(0,ncols):
-            large_ass_output[128*i:128*(i+1),128*j:128*(j+1),:]=output_list[i*ncols+j]
+            joined_output[128*i:128*(i+1),128*j:128*(j+1),:]=output_list[i*ncols+j]
 
-    return large_ass_output
+    joined_output = joined_output[2*pad_rows:-2*pad_rows, 2*pad_cols:-2*pad_cols]
+
+    return joined_output
 
 def doresize(x, shape):
     x = np.copy((x+1.)*127.5).astype("uint8")

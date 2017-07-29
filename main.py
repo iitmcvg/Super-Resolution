@@ -20,6 +20,7 @@ flags.DEFINE_string("log_dir", "logs", "Directory name to save the training logs
 flags.DEFINE_string("test_image", "test.jpg", "Location to image for testing [test.jpg]")
 flags.DEFINE_boolean("is_train", False, "True for training, False for testing [False]")
 flags.DEFINE_boolean("is_crop", False, "True for training, False for testing [False]")
+flags.DEFINE_boolean("debug", False, "Enable if you would like to see all progress of all intermediate steps")
 FLAGS = flags.FLAGS
 
 def main(_):
